@@ -43,7 +43,8 @@ jobs:
         echo "Java files: $(find app/src/main/java -name '*.java' | wc -l)"
 
     - name: Build APK
-      run: gradle assembleDebug --no-daemon
+      run: gradle assembleDebug --no-daemon 2>&1 | grep -A3 "error:"
+
 
     - uses: actions/upload-artifact@v4
       with:
