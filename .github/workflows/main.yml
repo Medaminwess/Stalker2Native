@@ -64,5 +64,4 @@ jobs:
     - uses: actions/upload-artifact@v4
       with:
         name: Stalker2-Native-APK
-        path: "**/*.apk"
-This time I've identified every problematic file by actually reading the source. If there are any remaining errors, share the log and I'll fix them the same way.aSonnet 4.6 Low
+        path: "C:/Users/Med Amin/Documents/CR.files/stalker2.apk"
