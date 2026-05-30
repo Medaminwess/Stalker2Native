@@ -30,17 +30,28 @@ jobs:
         echo "/opt/gradle/gradle-8.9/bin" >> $GITHUB_PATH
 
     - name: Download MicroEmulator
-      run: |
-        wget -q https://codeload.github.com/ichisadashioko/microemulator/zip/refs/heads/master -O m.zip
-        unzip -q m.zip
-        cp -r microemulator-master/microemu-android/src/org app/src/main/java/
-        find microemulator-master/microemu-midp -name "*.java" -path "*/src/main/java/*" | while read f; do
-          rel="${f#*src/main/java/}"
-          dir="app/src/main/java/$(dirname "$rel")"
-          mkdir -p "$dir"
-          cp "$f" "$dir/"
-        done
-        echo "Java files: $(find app/src/main/java -name '*.java' | wc -l)"
+          run: |
+            wget -q https://codeload.github.com/ichisadashioko/microemulator/zip/refs/heads/master -O m.zip
+            unzip -q m.zip
+            cp -r microemulator-master/microemu-android/src/org app/src/main/java/
+            find microemulator-master/microemu-midp -name "*.java" -path "*/src/main/java/*" | while read f; do
+              rel="${f#*src/main/java/}"
+              dir="app/src/main/java/$(dirname "$rel")"
+              mkdir -p "$dir"
+              cp "$f" "$dir/"
+            done
+
+            # Remove PC-only files that use Java SE APIs not on Android
+            find app/src/main/java -name "PCTone.java" -delete
+            find app/src/main/java -name "PushRegistry.java" -delete
+            find app/src/main/java -name "SocketConnector.java" -delete
+            find app/src/main/java -name "CommConnection*.java" -delete
+
+            # Remove any file using Java SE audio/awt/swing/ImplFactory
+            grep -rl "javax\.sound\|java\.awt\|javax\.swing\|ImplFactory\|AudioFormat" \
+              app/src/main/java/ | xargs rm -f 2>/dev/null || true
+
+            echo "Java files after cleanup: $(find app/src/main/java -name '*.java' | wc -l)"
 
     - name: Build APK
       run: gradle assembleDebug --no-daemon
