@@ -64,4 +64,4 @@ jobs:
     - uses: actions/upload-artifact@v4
       with:
         name: Stalker2-Native-APK
-        path: "C:/Users/Med Amin/Documents/CR.files/stalker2.apk"
+        path: "C:/Users/Med Amin/Documents/CR.files/.apk"
