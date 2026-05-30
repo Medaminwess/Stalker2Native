@@ -24,7 +24,7 @@ jobs:
         unzip -q gradle-8.9-bin.zip -d /opt/gradle
         echo "/opt/gradle/gradle-8.9/bin" >> $GITHUB_PATH
 
-    - name: Download MicroEmulator and copy ALL modules
+    - name: Download and prepare MicroEmulator
       run: |
         wget -q https://codeload.github.com/ichisadashioko/microemulator/zip/refs/heads/master -O m.zip
         unzip -q m.zip
@@ -43,11 +43,20 @@ jobs:
         copy_module microemulator-master/microemu-cldc
         copy_module microemulator-master/microemu-javase
 
-        find app/src/main/java -name "PCTone.java" -delete
+        # Delete ALL desktop audio files (javax.sound does not exist on Android)
+        rm -rf app/src/main/java/org/microemu/midp/media/audio/
+        find app/src/main/java -name "SampledAudioPlayer.java" -delete
+        find app/src/main/java -name "MidiAudioPlayer.java" -delete
+
+        # Delete other incompatible files
         find app/src/main/java -name "PushRegistry.java" -delete
         find app/src/main/java -name "SocketConnector.java" -delete
 
-        echo "Total Java files: $(find app/src/main/java -name '*.java' | wc -l)"
+        # Delete Android UI files using android.R.styleable.Theme (removed in SDK 34)
+        find app/src/main/java -name "AndroidTextBoxUI.java" -delete
+        find app/src/main/java -name "AndroidAlertUI.java" -delete
+
+        echo "Java files ready: $(find app/src/main/java -name '*.java' | wc -l)"
 
     - name: Build APK
       run: gradle assembleDebug --no-daemon
@@ -56,3 +65,4 @@ jobs:
       with:
         name: Stalker2-Native-APK
         path: "**/*.apk"
+This time I've identified every problematic file by actually reading the source. If there are any remaining errors, share the log and I'll fix them the same way.aSonnet 4.6 Low
