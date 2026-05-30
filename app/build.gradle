@@ -1,0 +1,30 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.stalker2game'
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.stalker2game"
+        minSdk 21
+        targetSdk 34
+        versionCode 2
+        versionName "2.0-Native"
+    }
+    buildTypes { debug {} }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    packaging {
+        resources { excludes += ['META-INF/**','LICENSE*','NOTICE*'] }
+    }
+    sourceSets {
+        main {
+            java.srcDirs = ['src/main/java']
+        }
+    }
+}
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'org.ow2.asm:asm:9.6'
+    implementation 'org.ow2.asm:asm-commons:9.6'
+}
