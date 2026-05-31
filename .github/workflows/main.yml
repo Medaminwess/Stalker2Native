@@ -1,0 +1,115 @@
+name: Build Stalker2 Native APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - uses: android-actions/setup-android@v3
+
+    - name: Install Android platform
+      run: |
+        yes | sdkmanager --licenses 2>/dev/null || true
+        sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+    - name: Install Gradle
+      run: |
+        wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip
+        unzip -q gradle-8.9-bin.zip -d /opt/gradle
+        echo "/opt/gradle/gradle-8.9/bin" >> $GITHUB_PATH
+
+    - name: Download and prepare MicroEmulator
+      run: |
+        wget -q https://codeload.github.com/ichisadashioko/microemulator/zip/refs/heads/master -O m.zip
+        unzip -q m.zip
+
+        copy_module() {
+          find "$1" -name "*.java" -path "*/src/main/java/*" | while read f; do
+            rel="${f#*src/main/java/}"
+            dir="app/src/main/java/$(dirname "$rel")"
+            mkdir -p "$dir"
+            cp "$f" "$dir/"
+          done
+        }
+
+        cp -r microemulator-master/microemu-android/src/org app/src/main/java/
+        copy_module microemulator-master/microemu-midp
+        copy_module microemulator-master/microemu-cldc
+        copy_module microemulator-master/microemu-javase
+
+        # FIX 1: Delete all desktop audio files (use javax.sound not available on Android)
+        rm -rf app/src/main/java/org/microemu/midp/media/audio/
+        find app/src/main/java -name "SampledAudioPlayer.java" -delete
+        find app/src/main/java -name "MidiAudioPlayer.java" -delete
+
+        # FIX 2: Replace Manager.java with stub (it referenced deleted audio classes)
+        cat > app/src/main/java/javax/microedition/media/Manager.java << 'EOF'
+        package javax.microedition.media;
+        import java.io.IOException;
+        import java.io.InputStream;
+        public class Manager {
+            public static Player createPlayer(String locator) throws IOException, MediaException { return null; }
+            public static Player createPlayer(InputStream stream, String type) throws IOException, MediaException { return null; }
+            public static String[] getSupportedContentTypes(String protocol) { return new String[0]; }
+            public static String[] getSupportedProtocols(String contentType) { return new String[0]; }
+        }
+        EOF
+
+        # FIX 3: Delete UI files using removed android.R.styleable.Theme (API 28+)
+        find app/src/main/java -name "AndroidListUI.java" -delete
+        find app/src/main/java -name "AndroidFormUI.java" -delete
+        find app/src/main/java -name "AndroidTextBoxUI.java" -delete
+        find app/src/main/java -name "AndroidAlertUI.java" -delete
+
+        # FIX 4: Patch AndroidDevice.java - stub out deleted UI classes
+        sed -i '/import.*AndroidAlertUI/d' app/src/main/java/org/microemu/android/device/AndroidDevice.java
+        sed -i '/import.*AndroidFormUI/d' app/src/main/java/org/microemu/android/device/AndroidDevice.java
+        sed -i '/import.*AndroidListUI/d' app/src/main/java/org/microemu/android/device/AndroidDevice.java
+        sed -i '/import.*AndroidTextBoxUI/d' app/src/main/java/org/microemu/android/device/AndroidDevice.java
+        sed -i 's/return new AndroidAlertUI(activity, alert);/return null;/' app/src/main/java/org/microemu/android/device/AndroidDevice.java
+        sed -i 's/return new AndroidFormUI(activity, form);/return null;/' app/src/main/java/org/microemu/android/device/AndroidDevice.java
+        sed -i 's/return new AndroidListUI(activity, list);/return null;/' app/src/main/java/org/microemu/android/device/AndroidDevice.java
+        sed -i 's/return new AndroidTextBoxUI(activity, textBox);/return null;/' app/src/main/java/org/microemu/android/device/AndroidDevice.java
+
+        # FIX 5: Fix Canvas.CLIP_SAVE_FLAG removed in API 28+
+        sed -i 's/canvas\.save(Canvas\.CLIP_SAVE_FLAG)/canvas.save()/g' \
+          app/src/main/java/org/microemu/android/device/AndroidDisplayGraphics.java
+        sed -i 's/this\.canvas\.save(Canvas\.CLIP_SAVE_FLAG)/this.canvas.save()/g' \
+          app/src/main/java/org/microemu/android/device/AndroidDisplayGraphics.java
+
+        # FIX 6: Fix ASM API - ClassAdapter/MethodAdapter removed in ASM 5+
+        # Replace with ClassVisitor/MethodVisitor + ASM4 compat mode
+        for f in \
+          app/src/main/java/org/microemu/android/asm/AndroidClassVisitor.java \
+          app/src/main/java/org/microemu/app/classloader/ChangeCallsClassVisitor.java; do
+          sed -i 's/import org.objectweb.asm.ClassAdapter;//g' "$f"
+          sed -i 's/extends ClassAdapter/extends ClassVisitor/g' "$f"
+          sed -i 's/super(cv)/super(Opcodes.ASM4, cv)/g' "$f"
+        done
+        for f in \
+          app/src/main/java/org/microemu/android/asm/AndroidClassVisitor.java \
+          app/src/main/java/org/microemu/app/classloader/ChangeCallsMethodVisitor.java; do
+          sed -i 's/import org.objectweb.asm.MethodAdapter;//g' "$f"
+          sed -i 's/extends MethodAdapter/extends MethodVisitor/g' "$f"
+          sed -i 's/super(mv)/super(Opcodes.ASM4, mv)/g' "$f"
+        done
+
+        # Delete other incompatible files
+        find app/src/main/java -name "PushRegistry.java" -delete
+        find app/src/main/java -name "SocketConnector.java" -delete
+
+        echo "Java files ready: $(find app/src/main/java -name '*.java' | wc -l)"
+
+    - name: Build APK
+      run: gradle assembleDebug --no-daemon
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Stalker2-Native-APK
+        path: "**/*.apk"
