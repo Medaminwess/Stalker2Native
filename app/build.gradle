@@ -18,13 +18,11 @@ android {
         resources { excludes += ['META-INF/**','LICENSE*','NOTICE*'] }
     }
     sourceSets {
-        main {
-            java.srcDirs = ['src/main/java']
-        }
+        main { java.srcDirs = ['src/main/java'] }
     }
 }
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'org.ow2.asm:asm-all:4.2'
-
+    implementation 'org.ow2.asm:asm:4.2'
+    implementation 'org.ow2.asm:asm-commons:4.2'
 }
