@@ -35,12 +35,7 @@ jobs:
         copy_module microemulator-master/microemu-midp
         copy_module microemulator-master/microemu-cldc
         copy_module microemulator-master/microemu-javase
-        python3 -c "
-f=open('app/src/main/java/javax/microedition/media/Manager.java','w')
-f.write('package javax.microedition.media;\nimport java.io.IOException;\nimport java.io.InputStream;\npublic class Manager {\npublic static Player createPlayer(String l) throws IOException,MediaException{return null;}\npublic static Player createPlayer(InputStream s,String t) throws IOException,MediaException{return null;}\npublic static String[] getSupportedContentTypes(String p){return new String[0];}\npublic static String[] getSupportedProtocols(String c){return new String[0];}\n}\n')
-f.close()
-"
-        rm -rf app/src/main/java/org/microemu/midp/media/audio/
+      python3 -c "f=open('app/src/main/java/javax/microedition/media/Manager.java','w'); f.write('package javax.microedition.media;\nimport java.io.IOException;\nimport java.io.InputStream;\npublic class Manager {\npublic static Player createPlayer(String l) throws IOException,MediaException{return null;}\npublic static Player createPlayer(InputStream s,String t) throws IOException,MediaException{return null;}\npublic static String[] getSupportedContentTypes(String p){return new String[0];}\npublic static String[] getSupportedProtocols(String c){return new String[0];}\n}\n'); f.close()"
         find app/src/main/java -name "SampledAudioPlayer.java" -delete
         find app/src/main/java -name "MidiAudioPlayer.java" -delete
         find app/src/main/java -name "AndroidListUI.java" -delete
