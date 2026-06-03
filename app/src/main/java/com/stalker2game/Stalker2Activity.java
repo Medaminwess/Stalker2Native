@@ -62,13 +62,14 @@ public class Stalker2Activity extends MicroEmulatorActivity {
             Logger.addAppender(new AndroidLoggerAppender());
 
             android.view.Display disp = getWindowManager().getDefaultDisplay();
-            AndroidDeviceDisplay dd = (AndroidDeviceDisplay) emulatorContext.getDeviceDisplay();
-            dd.displayRectangleWidth  = disp.getWidth();
-            dd.displayRectangleHeight = disp.getHeight() - 25;
+        common = new Common(emulatorContext);
+common.setRecordStoreManager(new AndroidRecordStoreManager(this));
+common.setDevice(new AndroidDevice(emulatorContext, this));
 
-            common = new Common(emulatorContext);
-            common.setRecordStoreManager(new AndroidRecordStoreManager(this));
-            common.setDevice(new AndroidDevice(emulatorContext, this));
+android.view.Display disp = getWindowManager().getDefaultDisplay();
+AndroidDeviceDisplay dd = (AndroidDeviceDisplay) DeviceFactory.getDevice().getDeviceDisplay();
+dd.displayRectangleWidth  = disp.getWidth();
+dd.displayRectangleHeight = disp.getHeight() - 25;
 
             // Load game using Android's DexClassLoader (proper DEX format)
             File dexOpt = new File(getCacheDir(), "dex-opt");
