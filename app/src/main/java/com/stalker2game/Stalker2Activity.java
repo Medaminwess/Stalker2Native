@@ -73,8 +73,12 @@ public class Stalker2Activity extends MicroEmulatorActivity {
             // Load game using Android's DexClassLoader (proper DEX format)
             File dexOpt = new File(getCacheDir(), "dex-opt");
             dexOpt.mkdirs();
-            DexClassLoader loader = new DexClassLoader(
-                dex.getAbsolutePath(), dexOpt.getAbsolutePath(), null, getClassLoader());
+           DexClassLoader loader = new DexClassLoader(
+    dex.getAbsolutePath() + ":" + jar.getAbsolutePath(),
+    dexOpt.getAbsolutePath(),
+    null,
+    getClassLoader()
+);
 
             String midletClass = getMidletClass(jar);
             if (midletClass == null) midletClass = "Container.Stalker_2";
