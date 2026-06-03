@@ -49,6 +49,15 @@ jobs:
         sed -i 's/return new AndroidAlertUI(activity, alert);/return null;/;s/return new AndroidFormUI(activity, form);/return null;/;s/return new AndroidListUI(activity, list);/return null;/;s/return new AndroidTextBoxUI(activity, textBox);/return null;/' app/src/main/java/org/microemu/android/device/AndroidDevice.java
         sed -i 's/\.save(Canvas\.CLIP_SAVE_FLAG)/.save()/g' app/src/main/java/org/microemu/android/device/AndroidDisplayGraphics.java
         echo "Java files: $(find app/src/main/java -name '*.java' | wc -l)"
+    - name: Convert game JAR to DEX
+      run: |
+        mkdir -p /tmp/game-dex
+        $ANDROID_HOME/build-tools/34.0.0/d8 \
+          --min-api 21 \
+          --output /tmp/game-dex/ \
+          app/src/main/assets/game.jar
+        cp /tmp/game-dex/classes.dex app/src/main/assets/game.dex
+        echo "game.dex: $(ls -lh app/src/main/assets/game.dex)"
     - name: Build APK
       run: gradle assembleDebug --no-daemon
     - uses: actions/upload-artifact@v4
