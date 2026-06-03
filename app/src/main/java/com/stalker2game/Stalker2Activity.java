@@ -1,20 +1,26 @@
 package com.stalker2game;
-
 import android.os.Bundle;
 import android.view.*;
 import android.widget.*;
+import dalvik.system.DexClassLoader;
 import java.io.*;
-
+import java.util.zip.*;
 import org.microemu.android.MicroEmulatorActivity;
 import org.microemu.android.device.*;
 import org.microemu.android.util.*;
 import org.microemu.app.Common;
 import org.microemu.EmulatorContext;
 import org.microemu.DisplayComponent;
+import org.microemu.MIDletAccess;
+import org.microemu.MIDletBridge;
+import org.microemu.DisplayAccess;
 import org.microemu.device.DeviceDisplay;
 import org.microemu.device.FontManager;
 import org.microemu.device.InputMethod;
 import org.microemu.log.Logger;
+import javax.microedition.lcdui.Canvas;
+import javax.microedition.lcdui.Displayable;
+import javax.microedition.midlet.MIDlet;
 
 public class Stalker2Activity extends MicroEmulatorActivity {
 
@@ -48,43 +54,71 @@ public class Stalker2Activity extends MicroEmulatorActivity {
 
     private void launchGame() {
         try {
-            // Extract game JAR from assets to internal storage
-            File jar = new File(getFilesDir(), "game.jar");
-            if (!jar.exists()) {
-                try (InputStream in  = getAssets().open("game.jar");
-                     OutputStream out = new FileOutputStream(jar)) {
-                    byte[] buf = new byte[8192]; int n;
-                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-                }
-            }
+            File jar = extractAsset("game.jar");
+            File dex = extractAsset("game.dex");
 
-            // Setup logging
             Logger.removeAllAppenders();
             Logger.setLocationEnabled(false);
             Logger.addAppender(new AndroidLoggerAppender());
 
-            // Setup display size
             android.view.Display disp = getWindowManager().getDefaultDisplay();
             AndroidDeviceDisplay dd = (AndroidDeviceDisplay) emulatorContext.getDeviceDisplay();
             dd.displayRectangleWidth  = disp.getWidth();
             dd.displayRectangleHeight = disp.getHeight() - 25;
 
-            // Boot MicroEmulator
             common = new Common(emulatorContext);
             common.setRecordStoreManager(new AndroidRecordStoreManager(this));
             common.setDevice(new AndroidDevice(emulatorContext, this));
 
-            // Launch game from JAR
-            Common.openMIDletUrlSafe(jar.toURI().toString());
+            // Load game using Android's DexClassLoader (proper DEX format)
+            File dexOpt = new File(getCacheDir(), "dex-opt");
+            dexOpt.mkdirs();
+            DexClassLoader loader = new DexClassLoader(
+                dex.getAbsolutePath(), dexOpt.getAbsolutePath(), null, getClassLoader());
 
-            // Attach gamepad after MIDlet starts
-            Thread.sleep(3000);
+            String midletClass = getMidletClass(jar);
+            if (midletClass == null) midletClass = "Container.Stalker_2";
+
+            Class<?> clazz = loader.loadClass(midletClass);
+            MIDlet midlet  = (MIDlet) clazz.newInstance();
+            MIDletBridge.setCurrentMIDlet(midlet);
+            MIDletBridge.getMIDletAccess().startApp();
+
+            Thread.sleep(2500);
             runOnUiThread(this::attachGamepad);
-
         } catch (Exception e) {
             runOnUiThread(() -> Toast.makeText(this,
                 "Error: " + e.getMessage(), Toast.LENGTH_LONG).show());
         }
+    }
+
+    private File extractAsset(String name) throws IOException {
+        File out = new File(getFilesDir(), name);
+        if (!out.exists()) {
+            try (InputStream in = getAssets().open(name);
+                 OutputStream os = new FileOutputStream(out)) {
+                byte[] buf = new byte[8192]; int n;
+                while ((n = in.read(buf)) > 0) os.write(buf, 0, n);
+            }
+        }
+        return out;
+    }
+
+    private String getMidletClass(File jarFile) {
+        try (ZipFile zf = new ZipFile(jarFile)) {
+            ZipEntry mf = zf.getEntry("META-INF/MANIFEST.MF");
+            if (mf == null) return null;
+            BufferedReader br = new BufferedReader(
+                new InputStreamReader(zf.getInputStream(mf)));
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.startsWith("MIDlet-1:")) {
+                    String[] parts = line.split(",");
+                    if (parts.length >= 3) return parts[2].trim();
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     private void attachGamepad() {
@@ -97,12 +131,12 @@ public class Stalker2Activity extends MicroEmulatorActivity {
 
     @Override protected void onPause() {
         super.onPause();
-        org.microemu.MIDletAccess ma = org.microemu.MIDletBridge.getMIDletAccess();
+        MIDletAccess ma = MIDletBridge.getMIDletAccess();
         if (ma != null) ma.pauseApp();
     }
     @Override protected void onResume() {
         super.onResume();
-        org.microemu.MIDletAccess ma = org.microemu.MIDletBridge.getMIDletAccess();
+        MIDletAccess ma = MIDletBridge.getMIDletAccess();
         if (ma != null) try { ma.startApp(); } catch (Exception ignored) {}
     }
 }
