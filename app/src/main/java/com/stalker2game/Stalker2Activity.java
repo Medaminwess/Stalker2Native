@@ -1,3 +1,4 @@
+import org.microemu.device.DeviceFactory;
 package com.stalker2game;
 import android.os.Bundle;
 import android.view.*;
