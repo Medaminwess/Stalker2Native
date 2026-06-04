@@ -1,5 +1,5 @@
-import org.microemu.device.DeviceFactory;
 package com.stalker2game;
+
 import android.os.Bundle;
 import android.view.*;
 import android.widget.*;
@@ -15,6 +15,7 @@ import org.microemu.DisplayComponent;
 import org.microemu.MIDletAccess;
 import org.microemu.MIDletBridge;
 import org.microemu.DisplayAccess;
+import org.microemu.device.DeviceFactory;
 import org.microemu.device.DeviceDisplay;
 import org.microemu.device.FontManager;
 import org.microemu.device.InputMethod;
@@ -62,25 +63,23 @@ public class Stalker2Activity extends MicroEmulatorActivity {
             Logger.setLocationEnabled(false);
             Logger.addAppender(new AndroidLoggerAppender());
 
+            common = new Common(emulatorContext);
+            common.setRecordStoreManager(new AndroidRecordStoreManager(this));
+            common.setDevice(new AndroidDevice(emulatorContext, this));
+
             android.view.Display disp = getWindowManager().getDefaultDisplay();
-        common = new Common(emulatorContext);
-common.setRecordStoreManager(new AndroidRecordStoreManager(this));
-common.setDevice(new AndroidDevice(emulatorContext, this));
+            AndroidDeviceDisplay dd = (AndroidDeviceDisplay) DeviceFactory.getDevice().getDeviceDisplay();
+            dd.displayRectangleWidth  = disp.getWidth();
+            dd.displayRectangleHeight = disp.getHeight() - 25;
 
-android.view.Display disp = getWindowManager().getDefaultDisplay();
-AndroidDeviceDisplay dd = (AndroidDeviceDisplay) DeviceFactory.getDevice().getDeviceDisplay();
-dd.displayRectangleWidth  = disp.getWidth();
-dd.displayRectangleHeight = disp.getHeight() - 25;
-
-            // Load game using Android's DexClassLoader (proper DEX format)
             File dexOpt = new File(getCacheDir(), "dex-opt");
             dexOpt.mkdirs();
-           DexClassLoader loader = new DexClassLoader(
-    dex.getAbsolutePath() + ":" + jar.getAbsolutePath(),
-    dexOpt.getAbsolutePath(),
-    null,
-    getClassLoader()
-);
+            DexClassLoader loader = new DexClassLoader(
+                dex.getAbsolutePath() + ":" + jar.getAbsolutePath(),
+                dexOpt.getAbsolutePath(),
+                null,
+                getClassLoader()
+            );
 
             String midletClass = getMidletClass(jar);
             if (midletClass == null) midletClass = "Container.Stalker_2";
